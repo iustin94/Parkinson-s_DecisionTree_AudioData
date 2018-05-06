@@ -1,6 +1,8 @@
 # Parkinson's disease classification
 # using voice samples in early diagnosed patients.
 #
+# Author: Iustinian Olaru
+# Date: 06.052018
 # Data set source :
 # http://archive.ics.uci.edu/ml/datasets/Parkinson+Speech+Dataset+with++Multiple+Types+of+Sound+Recordings
 #
@@ -15,128 +17,49 @@ required_packages <- c("rpart","tree")
 for( p in required_packages ){
   if( p %in% rownames(installed.packages()) == FALSE) {
     install.packages(p)
+    print(paste("Installing ",p,"..."))
   }
-  library(p)
+  else{
+    print(paste("Package ",p," already installed" ))
+  }
+  require(p)
 }
 
+setwd(".")
+source("functions.R")
 
+DEBUG <- TRUE
+
+if(!DEBUG){
 args = commandArgs(trailingOnly = false)
 
-# test if there is at least one argument: if not, return an error
+# Test if there is at least one argument: if not, return an error
 if (length(args) == 2) {
-  stop("At least one argument must be supplied (input file).n", call. = FALSE)
-} else if (length(args) == 2) {
-  # default output file
-  args[3] = "out.txt"
+    stop("At least one argument must be supplied (input file).n", call. = FALSE)
+  } else if (length(args) == 2) {
+    # default output file
+    args[3] = "out.txt"
+  }
+
+  #Create dataframe acording to dataset specifications
+  test_data <- read.csv(args[1], header = FALSE)
+  train_data <- read.csv(args[2], header = FALSE)
 }
 
-#Set wd to current execution path
-setwd(".")
-
-#Create dataframe acording to dataset specifications
-test_data <- read.csv(args[1], header = FALSE)
-train_data <- read.csv(args[2], header = FALSE)
-
 #Lines for debugging, DELETE AFTER FINISH
-test_data <-
-  read.csv(
-    "Documents/Parkinson_Multiple_Sound_Recording_Data/test_data.txt",
-    header = FALSE,
-    sep = ","
-  )
-train_data <-
-  read.csv(
-    "Documents/Parkinson_Multiple_Sound_Recording_Data/train_data.txt",
-    header = FALSE,
-    sep = ","
-  )
+test_data <-read.csv("data/test_data.txt",header = FALSE,sep = ",")
+train_data <- read.csv("data/train_data.txt", header = FALSE,sep = ",")
 
-# It ain't pretty
-
-c_names_train <- c(
-  "Subject_id",
-  "Jitter_local",
-  "Jitter_local_absolute",
-  "Jitter_rap",
-  "Jitter_ppq5",
-  "Jitter_ddp",
-  "Shimmer_local",
-  "Shimmer_local_dB",
-  "Shimmer_apq3",
-  "Shimmer_apq5",
-  "Shimmer_apq11",
-  "Shimmer_dda",
-  "AC",
-  "NTH",
-  "HTN",
-  "Median_pitch",
-  "Mean_pitch",
-  "Standard_deviation",
-  "Minimum_pitch",
-  "Maximum_pitch",
-  "Number_of_pulses",
-  "Number_of_periods",
-  "Mean_period",
-  "Standard_deviation_of_period",
-  "Fraction_of_locally_unvoiced_frames",
-  "Number_of_voice_breaks",
-  "Degree_of_voice_breaks",
-  "UPDRS",
-  "Class"
-)
-  
-c_names_test <- c(
-  "Subject_id",
-  "Jitter_local",
-  "Jitter_local_absolute",
-  "Jitter_rap",
-  "Jitter_ppq5",
-  "Jitter_ddp",
-  "Shimmer_local",
-  "Shimmer_local_dB",
-  "Shimmer_apq3",
-  "Shimmer_apq5",
-  "Shimmer_apq11",
-  "Shimmer_dda",
-  "AC",
-  "NTH",
-  "HTN",
-  "Median_pitch",
-  "Mean_pitch",
-  "Standard_deviation",
-  "Minimum_pitch",
-  "Maximum_pitch",
-  "Number_of_pulses",
-  "Number_of_periods",
-  "Mean_period",
-  "Standard_deviation_of_period",
-  "Fraction_of_locally_unvoiced_frames",
-  "Number_of_voice_breaks",
-  "Degree_of_voice_breaks",
-  "Class"
-)
-
-  train_df <- data.frame(train_data)
-  colnames(train_df) <- c_names_train
-  test_df[,"Class"==1] <- "Parkinsons"  
-
-  test_df <- data.frame(test_data)
-  colnames(test_df) <- c_names_test
-  test_df[,"Class"==1] <- "Parkinsons"
-  
+  train_df <- preprocess_data(train_data, c_names_train)
+  test_df <- preprocess_data(test_data, c_names_test)
   
   
   #Growing the tree without Subject_id and UPDRS field so as to not bias by external scores
   #Passing the train df without Subject_id and UPDRS and then 
   #defining class as a function that takes into account everything else
-  
-  parkinsons_tree1 <- tree(Class ~ . , data = train_df[,c(-1,-28)],split="deviance")
-  summary(parkinsons_tree)      
-  parkinsons_tree1 <- prune.misclass(parkinsons_tree1, best = 8 )
-  
-  parkinsons_tree2 <- tree(Class ~ . , data = train_df[,c(-1,-28)],split = "gini")
-  summary(parkinsons_tree)      
-  
+  parkinsons_tree1<- grow_and_prune_tree(train_df[,c(-1,-28)], split_type ="deviance", 8)
+  parkinsons_tree2 <- grow_and_prune_tree(train_df[,c(-1)],split = "gini", 8)
+     
   #Predict test data
   parkinsons_ginisplit <- predict(parkinsons_tree1, test_df[-1])
   parkinsons_deviancesplit <- predict(parkinsons_tree2, test_df[-1])
