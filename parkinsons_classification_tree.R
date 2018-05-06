@@ -22,10 +22,10 @@ for( p in required_packages ){
   else{
     print(paste("Package ",p," already installed" ))
   }
-  require(p)
+  library(p, character.only = TRUE)
 }
 
-setwd(".")
+setwd("/home/iustinian/Documents/Parkinson_Multiple_Sound_Recording_Data/")
 source("functions.R")
 
 DEBUG <- TRUE
@@ -53,25 +53,20 @@ train_data <- read.csv("data/train_data.txt", header = FALSE,sep = ",")
   train_df <- preprocess_data(train_data, c_names_train)
   test_df <- preprocess_data(test_data, c_names_test)
   
-  
   #Growing the tree without Subject_id and UPDRS field so as to not bias by external scores
   #Passing the train df without Subject_id and UPDRS and then 
   #defining class as a function that takes into account everything else
   parkinsons_tree1<- grow_and_prune_tree(train_df[,c(-1,-28)], split_type ="deviance", 8)
   parkinsons_tree2 <- grow_and_prune_tree(train_df[,c(-1)],split = "gini", 8)
-     
+  
+  tree_png(parkinsons_tree1, "parkinsons_tree1")
   #Predict test data
   parkinsons_ginisplit <- predict(parkinsons_tree1, test_df[-1])
   parkinsons_deviancesplit <- predict(parkinsons_tree2, test_df[-1])
   
-  #Confusion matrix
-  confusion_matrix1 <- table(test_df$Class, parkinsons_ginisplit)
-  confusion_matrix2 <- table(test_df$Class, parkinsons_deviancesplit)
-  
-  #Accuracy 
-  accuracy_gini <- sum(diag(confusion_matrix1))/sum(confusion_matrix1)
-  accuracy_deviance <- sum(diag(confusion_matrix2))/sum(confusion_matrix2)
-  
+  #Calculate accuracy
+  gini_accuracy <- calculate_accuracy(parkinsons_tree1, test_df)
+  deviance_accuracy <- calculate_accuracy(parkinsons_tree2, test_df)
   
   
   

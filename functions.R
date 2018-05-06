@@ -20,10 +20,15 @@ c_names_test <- c("Subject_id","Jitter_local","Jitter_local_absolute","Jitter_ra
 #Process the data files into a data frame, adjust Class values to positive and negative
 preprocess_data <- function(data_table, col_names){
   
+  f <- factor(c("Positive", "Negative"))
+  
   tmp_df <- data.frame(data_table)
   colnames(tmp_df) <- col_names
-  tmp_df[,"Class"==1] <- "Positive"
-  tmp_df[,"Class"==0] <- "Negative"
+  
+  tmp_df$Class[tmp_df$Class==1] <- "Positive"
+  tmp_df$Class[tmp_df$Class==0] <- "Negative"
+  tmp_df$Class <- as.factor(tmp_df$Class)
+  
   
   return(tmp_df)
 }
@@ -33,13 +38,27 @@ preprocess_data <- function(data_table, col_names){
 #defining class as a function that takes into account everything else
 grow_and_prune_tree <- function(data_frame, split_type, prune_best){
   
-  tmp_tree <- tree(Class ~., data = data_frame, split = split_type )
+  tmp_tree <- tree(Class ~. , data = data_frame, split = split_type )
   tmp_tree <- prune.misclass(tmp_tree, best = prune_best)
-  summary(parkinsons_tree1)
+  summary(tmp_tree)
   
   return(tmp_tree)
 }
 
-calculate_accuracy <- function(){
+calculate_accuracy <- function(prediction, test_df){
   
+  tmp_confusion_matrix <- table(test_df$Class, prediction)
+  accuracy <- sum(diag(tmp_confusion_matrix))/sum(tmp_confusion_matrix)
+  
+  return(accuracy)
+}
+
+tree_report <- function(tree, name){
+  
+  png(paste(c(name, ".png"), collapse = ""))
+  plot(tree)
+  text(tree)
+  summary(tree)
+  title(name)
+  dev.off
 }
