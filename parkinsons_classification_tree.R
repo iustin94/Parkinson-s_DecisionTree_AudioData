@@ -4,7 +4,7 @@
 # Author: Iustinian Olaru
 # Date: 06.052018
 # Data set source :
-# http://archive.ics.uci.edu/ml/datasets/Parkinson+Speech+Dataset+with++Multiple+Types+of+Sound+Recordings
+# au
 #
 # Data set consists of a test file and a train file.
 # Voice samples come from 20 PWP and 20 Healthy individuals.
@@ -12,7 +12,7 @@
 #
 # The following script attempts to train a classification tree to classify the
 # test data into healty or pwp individuals.
-required_packages <- c("rpart","tree")
+required_packages <- c("rpart","tree", "rpart.plot")
 
 for( p in required_packages ){
   if( p %in% rownames(installed.packages()) == FALSE) {
@@ -50,34 +50,48 @@ if (length(args) == 2) {
 test_data <-read.csv("data/test_data.txt",header = FALSE,sep = ",")
 train_data <- read.csv("data/train_data.txt", header = FALSE,sep = ",")
 
-  train_df <- preprocess_data(train_data, c_names_train)
-  test_df <- preprocess_data(test_data, c_names_test)
-  
-  #Growing the tree without Subject_id and UPDRS field so as to not bias by external scores
-  #Passing the train df without Subject_id and UPDRS and then 
-  #defining class as a function that takes into account everything else
-  parkinsons_tree1<- grow_and_prune_tree(train_df[,c(-1,-28)], split_type ="deviance", 8)
-  parkinsons_tree2 <- grow_and_prune_tree(train_df[,c(-1)],split = "gini", 8)
-  
-  tree_png(parkinsons_tree1, "parkinsons_tree1")
-  #Predict test data
-  parkinsons_ginisplit <- predict(parkinsons_tree1, test_df[-1])
-  parkinsons_deviancesplit <- predict(parkinsons_tree2, test_df[-1])
-  
-  #Calculate accuracy
-  gini_accuracy <- calculate_accuracy(parkinsons_tree1, test_df)
-  deviance_accuracy <- calculate_accuracy(parkinsons_tree2, test_df)
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+train_df <- preprocess_data(train_data, c_names_train)
+test_df <- preprocess_data(test_data, c_names_test)
+remove(test_data)
+remove(train_data)  
+
+#Classification tree with Gini split
+classification_tree_gini<- tree(Class~., train_df[,c(-1,-28)], split ="gini")
+best_prune <- find_best_prune(classification_tree_gini, test_df)
+classification_tree_gini<- prune.misclass(classification_tree_gini, best = best_prune)
+summary(classification_tree_gini)
+gini_split_classification <- predict(classification_tree_gini, test_df)
+
+#Classification tree with Deviance split
+classification_tree_deviance <- tree(Class~., train_df[,c(-1,-28)],split = "deviance")
+best_prune <- find_best_prune(classification_tree_deviance, test_df)
+classification_tree_deviance <- prune.misclass(classification_tree_deviance, best = best_prune)
+summary(classification_tree_deviance)  
+deviance_split_classification <- predict(classification_tree_deviance, test_df)
+
+#Regression tree with Gini split
+regression_tree_gini <- tree(UPDRS ~., train_df[,c(-1,-29)], split = "gini")
+best_prune <- find_best_prune(regression_tree_gini, test_df)
+regression_tree_gini <- prune.misclass(regression_tree_gini, best = best_prune)
+summary(regression_tree_gini)
+gini_split_regression <- predict(regression_tree_gini, test_df[-28])
+
+#Regression tree with Deviance split
+regression_tree_deviance <- tree(UPDRS ~., train_df[,c(-1,-29)], split = "deviance")
+best_prune <- find_best_prune(regression_tree_gini, test_df)
+regression_tree_deviance <- prune.tree(regression_tree_deviance, best = best_prune)
+summary(regression_tree_deviance)
+deviance_split_regression <- predict(regression_tree_deviance, test_df) 
+
+#Calculate accuracy for Positive classification
+gini_TP_accuracy <- calculate_accuracy(gini_split_classification[, "Positive"], test_df[])
+deviance_TP_accuracy <- calculate_accuracy(deviance_split_classification[, "Positive"], test_df)
+
+gini_TP_regression <- calculate_accuracy( gini_split_regression[,"Positive"], test_df)
+
+#Calculate accuracy for Negative classifications  
+gini_TN_accuracy <- calculate_accuracy(parkinsons_ginisplit[, "Negative"], test_df)
+deviance_TN_accuracy <- calculate_accuracy(parkinsons_deviancesplit[, "Negative"], test_df)
   
   
   

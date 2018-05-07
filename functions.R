@@ -36,12 +36,10 @@ preprocess_data <- function(data_table, col_names){
 #Growing the tree without Subject_id and UPDRS field so as to not bias by external scores
 #Passing the train df without Subject_id and UPDRS and then 
 #defining class as a function that takes into account everything else
-grow_and_prune_tree <- function(data_frame, split_type, prune_best){
+grow_and_prune_tree <- function(train_frame,test_frame, split_type){
   
   tmp_tree <- tree(Class ~. , data = data_frame, split = split_type )
-  tmp_tree <- prune.misclass(tmp_tree, best = prune_best)
-  summary(tmp_tree)
-  
+  tmp_tree <- prune.misclass(tmp_tree, best = find_best_prune(tmp_tree, test_frame))
   return(tmp_tree)
 }
 
@@ -53,12 +51,50 @@ calculate_accuracy <- function(prediction, test_df){
   return(accuracy)
 }
 
-tree_report <- function(tree, name){
+tree_report <- function(tree, test_df, name){
   
-  png(paste(c(name, ".png"), collapse = ""))
+  p<-predict(tree, test_df)
+  
+  jpeg("./reports/tree_plot%03d.jpeg")
   plot(tree)
   text(tree)
-  summary(tree)
-  title(name)
-  dev.off
+  title(tree)
+  dev.off()
+  
+  sink("./reoprts/tree_report%03d.txt")
+  print(summary(tree))
+  print(paste("Accuracy:", calculate_accuracy(p, test_df)))
+  sink()
 }
+
+find_best_prune<- function(tree, test_frame){
+  
+  tmp_tree <- tree
+  best_prune <-0
+  best_accuracy <- 0
+  
+  cv <- cv.tree(tmp_tree)
+  for(i in cv$size[cv$size>1])
+  {
+    #Prune tree
+    if(class(tree$y)=="factor"){
+      tmp_tree <- prune.tree(tmp_tree, best = i)
+      tmp_pred <- predict(tmp_tree, test_frame)
+      acc <- calculate_accuracy(tmp_pred[,"Positive"], test_df)
+    }
+    else{
+      tmp_tree <- prune.tree(tmp_tree, best = i, method = "deviance")
+      tmp_pred <- predict(tmp_tree, test_frame)
+      acc <- calculate_accuracy(tmp_pred, test_df)
+    }
+    
+    #If better remember prune value
+    if(acc > best_accuracy){
+      best_accuracy <- acc
+      best_prune <- i
+    }
+  }
+  
+  return(c(best_prune,best_accuracy))
+}
+
